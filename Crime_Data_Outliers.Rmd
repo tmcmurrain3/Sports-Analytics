@@ -1,0 +1,84 @@
+---
+title: "Crime_Outliers"
+author: "Hugh McMurrain"
+output:
+  word_document: default
+  pdf_document: default
+---
+# ----- HW2 5.1 -----# 
+Clear Environment, load necessary libraries, load data and ensure it was read correctly.
+```{r}
+rm(list=ls())
+
+library(ggplot2)
+library(outliers)
+
+data <- read.table("C:/Users/tmcmu/Desktop/edX Courses/ISYE 6501/Homework 2/data 5.1/uscrime.txt", stringsAsFactors = FALSE, header = TRUE)
+
+head(data)
+```
+
+"Crime" data - V16 - is the only column of interest
+```{r}
+crimedata <- data[,"Crime"]
+```
+
+set seed
+```{r}
+set.seed(22)
+```
+
+Check to see if Crime (V16) is normally distributed
+```{r}
+hist(as.integer(crimedata), breaks = 6)
+shapiro.test(crimedata)
+```
+Both the histogram and the shapiro test p-value (0.001882) show that the data is NOT normally distributed. 
+
+Let's use a qqnorm plot with SCALED data to determine if the middle of the data set is normally distributed.
+```{r}
+qqnorm(scale(crimedata))
+```
+
+the QQnorm plot suggests that the "middle" of the data is approximately normally distributed, thus we can run a Grubbs' test.
+A Grubbs' test of type=11 will run the test for two outliers on opposite tails of the distribution.
+
+```{r}
+CrimeModel <- grubbs.test(crimedata, type = 11)
+CrimeModel
+```
+
+P-value of 1 shows that one of the extremes, 342 or 1993, is an NOT an outlier.
+
+Retry the grubbs test with a type of 10
+```{r}
+CrimeModel <- grubbs.test(crimedata, type = 10)
+CrimeModel
+```
+With a p-value of 0.07887, the 1993 data point could either be considered an outlier or not, depending on which threshold p-value we utilized for an outlier cutoff (0.05 vs. 0.10). Lets assume this data point is an outlier. 
+
+Now we will create a second dataset without the outlier to run a grubbs test on.
+```{r}
+which.max(crimedata)
+CrimeModel_NoMax <- crimedata[-which.max(crimedata)]
+grubbs.test(CrimeModel_NoMax, type = 10)
+```
+
+The low p-value < 0.05, which suggests that this city's crime is also an outlier.
+So let's remove it, and run the Grubb's test again.
+
+```{r}
+which.max(CrimeModel_NoMax)
+CrimeModel3 <- CrimeModel_NoMax[-which.max(CrimeModel_NoMax)]
+grubbs.test(CrimeModel3, type = 10)
+```
+
+The p-value (0.1781) is high enough that it isn't clear if the data point is an outlier. So let's stop there, having removed the top 2 highest potential outliers.
+
+Now we can check the minimum data point, and since we've highlighted and removed the two maximum outliers, only the minimum data point is left to be tested. To do this we can use the OPPOSITE=TRUE parameter.
+```{r}
+Low_OutlierTest <- grubbs.test(CrimeModel3, type=10, opposite = TRUE)
+Low_OutlierTest
+```
+
+With a p-value of 1, we can reasonably conclude that the minimum data point is NOT an outlier.
